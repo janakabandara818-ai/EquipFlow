@@ -12,15 +12,42 @@ class EquipmentCatalogueScreen extends StatefulWidget {
 }
 
 class _EquipmentCatalogueScreenState extends State<EquipmentCatalogueScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   String _query = '';
+  String? _selectedCategory;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredEquipment = sampleEquipment.where((item) {
-      final searchableText = '${item.equipmentId} ${item.name} ${item.category}'
-          .toLowerCase();
+    final categories =
+        sampleEquipment.map((equipment) => equipment.category).toSet().toList()
+          ..sort();
 
-      return searchableText.contains(_query);
+    final categoryOptions = <String?>[null, ...categories];
+
+    final filteredEquipment = sampleEquipment.where((equipment) {
+      final searchableText =
+          '${equipment.equipmentId} ${equipment.name} ${equipment.category}'
+              .toLowerCase();
+
+      final matchesSearch = searchableText.contains(_query);
+      final matchesCategory =
+          _selectedCategory == null || equipment.category == _selectedCategory;
+
+      return matchesSearch && matchesCategory;
     }).toList();
 
     return Scaffold(
@@ -28,13 +55,21 @@ class _EquipmentCatalogueScreenState extends State<EquipmentCatalogueScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
-              decoration: const InputDecoration(
+              controller: _searchController,
+              decoration: InputDecoration(
                 labelText: 'Search equipment',
                 hintText: 'Name, ID or category',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.clear),
+                      ),
+                border: const OutlineInputBorder(),
               ),
               onChanged: (value) {
                 setState(() {
@@ -43,36 +78,67 @@ class _EquipmentCatalogueScreenState extends State<EquipmentCatalogueScreen> {
               },
             ),
           ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: categoryOptions.map((category) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category ?? 'All'),
+                    selected: _selectedCategory == category,
+                    onSelected: (selected) {
+                      if (!selected) {
+                        return;
+                      }
+
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: filteredEquipment.isEmpty
                 ? const Center(child: Text('No equipment found.'))
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: filteredEquipment.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final item = filteredEquipment[index];
+                      final equipment = filteredEquipment[index];
 
                       return Card(
+                        clipBehavior: Clip.antiAlias,
                         child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
                           leading: Icon(
-                            item.serviceable
+                            equipment.serviceable
                                 ? Icons.inventory_2_outlined
                                 : Icons.build_outlined,
                           ),
-                          title: Text(item.name),
+                          title: Text(equipment.name),
                           subtitle: Text(
-                            '${item.equipmentId} • ${item.category}\n'
-                            '${item.serviceable ? 'Serviceable' : 'Under maintenance'}',
+                            '${equipment.equipmentId} • '
+                            '${equipment.category}\n'
+                            '${equipment.serviceable ? 'Serviceable' : 'Under maintenance'}',
                           ),
                           isThreeLine: true,
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
+                            FocusScope.of(context).unfocus();
+
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (context) =>
-                                    EquipmentDetailsScreen(equipment: item),
+                                builder: (context) => EquipmentDetailsScreen(
+                                  equipment: equipment,
+                                ),
                               ),
                             );
                           },
@@ -88,16 +154,23 @@ class _EquipmentCatalogueScreenState extends State<EquipmentCatalogueScreen> {
 }
 
 class EquipmentDetailsScreen extends StatelessWidget {
+  const EquipmentDetailsScreen({super.key, required this.equipment});
+
   final Equipment equipment;
 
-  const EquipmentDetailsScreen({super.key, required this.equipment});
+  Widget _detail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text('$label: $value', style: const TextStyle(fontSize: 16)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Equipment Details')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         children: [
           Icon(
             equipment.serviceable
@@ -111,7 +184,7 @@ class EquipmentDetailsScreen extends StatelessWidget {
             equipment.name,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           _detail('Equipment ID', equipment.equipmentId),
           _detail('Category', equipment.category),
           _detail('Condition', equipment.condition),
@@ -119,19 +192,15 @@ class EquipmentDetailsScreen extends StatelessWidget {
             'Service status',
             equipment.serviceable ? 'Serviceable' : 'Under maintenance',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text('Description', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          Text(equipment.description),
+          Text(
+            equipment.description,
+            style: const TextStyle(fontSize: 16, height: 1.5),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _detail(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text('$label: $value'),
     );
   }
 }
