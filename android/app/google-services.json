@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "331523742247",
+    "project_id": "equipflow-fc400",
+    "storage_bucket": "equipflow-fc400.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:331523742247:android:39e1c05509fae6958bcc02",
+        "android_client_info": {
+          "package_name": "com.example.equipflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnfKmv8b-WtOLUJcJoWEAgXQnmvTLlT5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
