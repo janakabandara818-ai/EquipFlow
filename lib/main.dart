@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'screens/equipment_catalogue_screen.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -84,7 +86,7 @@ class HomeScreen extends StatelessWidget {
             icon: Icons.devices_outlined,
             title: 'Browse Equipment',
             subtitle: 'Explore equipment available to reserve',
-            onTap: () => _openScreen(context, const EquipmentScreen()),
+            onTap: () => _openScreen(context, const EquipmentCatalogueScreen()),
           ),
           ActionCard(
             icon: Icons.event_note_outlined,
@@ -135,18 +137,6 @@ class ActionCard extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
-    );
-  }
-}
-
-class EquipmentScreen extends StatelessWidget {
-  const EquipmentScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Equipment')),
-      body: const Center(child: Text('Equipment catalogue coming next.')),
     );
   }
 }

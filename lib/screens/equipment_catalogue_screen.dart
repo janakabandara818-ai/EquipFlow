@@ -1,0 +1,137 @@
+import 'package:flutter/material.dart';
+
+import '../data/sample_equipment.dart';
+import '../models/equipment.dart';
+
+class EquipmentCatalogueScreen extends StatefulWidget {
+  const EquipmentCatalogueScreen({super.key});
+
+  @override
+  State<EquipmentCatalogueScreen> createState() =>
+      _EquipmentCatalogueScreenState();
+}
+
+class _EquipmentCatalogueScreenState extends State<EquipmentCatalogueScreen> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredEquipment = sampleEquipment.where((item) {
+      final searchableText = '${item.equipmentId} ${item.name} ${item.category}'
+          .toLowerCase();
+
+      return searchableText.contains(_query);
+    }).toList();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Equipment Catalogue')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search equipment',
+                hintText: 'Name, ID or category',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _query = value.trim().toLowerCase();
+                });
+              },
+            ),
+          ),
+          Expanded(
+            child: filteredEquipment.isEmpty
+                ? const Center(child: Text('No equipment found.'))
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: filteredEquipment.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = filteredEquipment[index];
+
+                      return Card(
+                        child: ListTile(
+                          leading: Icon(
+                            item.serviceable
+                                ? Icons.inventory_2_outlined
+                                : Icons.build_outlined,
+                          ),
+                          title: Text(item.name),
+                          subtitle: Text(
+                            '${item.equipmentId} • ${item.category}\n'
+                            '${item.serviceable ? 'Serviceable' : 'Under maintenance'}',
+                          ),
+                          isThreeLine: true,
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (context) =>
+                                    EquipmentDetailsScreen(equipment: item),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class EquipmentDetailsScreen extends StatelessWidget {
+  final Equipment equipment;
+
+  const EquipmentDetailsScreen({super.key, required this.equipment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Equipment Details')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Icon(
+            equipment.serviceable
+                ? Icons.inventory_2_outlined
+                : Icons.build_outlined,
+            size: 72,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            equipment.name,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          _detail('Equipment ID', equipment.equipmentId),
+          _detail('Category', equipment.category),
+          _detail('Condition', equipment.condition),
+          _detail(
+            'Service status',
+            equipment.serviceable ? 'Serviceable' : 'Under maintenance',
+          ),
+          const SizedBox(height: 16),
+          Text('Description', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(equipment.description),
+        ],
+      ),
+    );
+  }
+
+  Widget _detail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text('$label: $value'),
+    );
+  }
+}
