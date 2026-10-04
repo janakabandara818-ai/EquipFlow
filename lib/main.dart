@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
+import 'screens/auth_screen.dart';
 import 'screens/equipment_catalogue_screen.dart';
 
 Future<void> main() async {
@@ -25,16 +27,108 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
-      home: const HomeScreen(),
+      home: const AuthGate(),
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
 
-  void _openScreen(BuildContext context, Widget screen) {
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final Stream<User?> _authState;
+
+  @override
+  void initState() {
+    super.initState();
+    _authState = FirebaseAuth.instance.authStateChanges();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: _authState,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Unable to check your session. Please restart the app.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final user = snapshot.data;
+
+        if (user == null) {
+          return const AuthScreen();
+        }
+
+        return HomeScreen(key: ValueKey(user.uid), user: user);
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, required this.user});
+
+  final User user;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _isSigningOut = false;
+
+  void _openScreen(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  Future<void> _signOut() async {
+    if (_isSigningOut) {
+      return;
+    }
+
+    setState(() {
+      _isSigningOut = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      // AuthGate automatically displays AuthScreen after sign-out.
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to log out. Please try again.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningOut = false;
+        });
+      }
+    }
   }
 
   @override
@@ -46,6 +140,19 @@ class HomeScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Log out',
+            onPressed: _isSigningOut ? null : _signOut,
+            icon: _isSigningOut
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -56,12 +163,16 @@ class HomeScreen extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.inventory_2_outlined, size: 44, color: Colors.white),
-                SizedBox(height: 16),
-                Text(
+                const Icon(
+                  Icons.inventory_2_outlined,
+                  size: 44,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 16),
+                const Text(
                   'Welcome to EquipFlow',
                   style: TextStyle(
                     fontSize: 24,
@@ -69,8 +180,13 @@ class HomeScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
+                  widget.user.email ?? 'Signed in',
+                  style: const TextStyle(fontSize: 15, color: Colors.white),
+                ),
+                const SizedBox(height: 12),
+                const Text(
                   'Find equipment, manage reservations, '
                   'and scan QR codes for checkout.',
                   style: TextStyle(
@@ -92,19 +208,19 @@ class HomeScreen extends StatelessWidget {
             icon: Icons.devices_outlined,
             title: 'Browse Equipment',
             subtitle: 'Explore equipment available to reserve',
-            onTap: () => _openScreen(context, const EquipmentCatalogueScreen()),
+            onTap: () => _openScreen(const EquipmentCatalogueScreen()),
           ),
           ActionCard(
             icon: Icons.event_note_outlined,
             title: 'My Reservations',
             subtitle: 'View your equipment bookings',
-            onTap: () => _openScreen(context, const ReservationsScreen()),
+            onTap: () => _openScreen(const ReservationsScreen()),
           ),
           ActionCard(
             icon: Icons.qr_code_scanner,
             title: 'Scan QR',
             subtitle: 'Check out or return equipment',
-            onTap: () => _openScreen(context, const ScanScreen()),
+            onTap: () => _openScreen(const ScanScreen()),
           ),
         ],
       ),
